@@ -6,21 +6,26 @@ import emailService from './email-service';
 import orm from '../entity/orm';
 import account from '../entity/account';
 import { and, asc, eq, gt, inArray, count, sql } from 'drizzle-orm';
-import { isDel } from '../const/entity-const';
+import { isDel, settingConst } from '../const/entity-const';
 import settingService from './setting-service';
 import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import { t } from '../i18n/i18n';
+import verifyRecordService from './verify-record-service';
 
 const accountService = {
 
 	async add(c, params, userId) {
 
-		if (!await settingService.isAddEmail(c)) {
+		const {addEmailVerify , addEmail, manyEmail, addVerifyCount} = await settingService.query(c);
+
+		let { email, token } = params;
+
+
+		if (!(addEmail === settingConst.addEmail.OPEN && manyEmail === settingConst.manyEmail.OPEN)) {
 			throw new BizError(t('addAccountDisabled'));
 		}
 
-		let { email, token } = params;
 
 		if (!email) {
 			throw new BizError(t('emptyEmail'));
@@ -35,7 +40,7 @@ const accountService = {
 		}
 
 
-		const accountRow = await this.selectByEmailIncludeDelNoCase(c, email);
+		let accountRow = await this.selectByEmailIncludeDelNoCase(c, email);
 
 		if (accountRow && accountRow.isDel === isDel.DELETE) {
 			throw new BizError(t('isDelAccount'));
@@ -48,16 +53,43 @@ const accountService = {
 		const userRow = await userService.selectById(c, userId);
 		const roleRow = await roleService.selectById(c, userRow.type);
 
-		if (roleRow.accountCount && userRow.email !== c.env.admin) {
-			const userAccountCount = await accountService.countUserAccount(c, userId)
-			if(userAccountCount >= roleRow.accountCount) throw new BizError(t('accountLimit'), 403);
+		if (userRow.email !== c.env.admin) {
+
+			if (roleRow.accountCount > 0) {
+				const userAccountCount = await accountService.countUserAccount(c, userId)
+				if(userAccountCount >= roleRow.accountCount) throw new BizError(t('accountLimit'), 403);
+			}
+
+			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, email)) {
+				throw new BizError(t('noDomainPermAdd'),403)
+			}
+
 		}
 
-		if (await settingService.isAddEmailVerify(c)) {
+		let addVerifyOpen = false
+
+		if (addEmailVerify === settingConst.addEmailVerify.OPEN) {
+			addVerifyOpen = true
 			await turnstileService.verify(c, token);
 		}
 
-		return orm(c).insert(account).values({ email: email, userId: userId, name: emailUtils.getName(email) }).returning().get();
+		if (addEmailVerify === settingConst.addEmailVerify.COUNT) {
+			addVerifyOpen = await verifyRecordService.isOpenAddVerify(c, addVerifyCount);
+			if (addVerifyOpen) {
+				await turnstileService.verify(c,token)
+			}
+		}
+
+
+		accountRow = await orm(c).insert(account).values({ email: email, userId: userId, name: emailUtils.getName(email) }).returning().get();
+
+		if (addEmailVerify === settingConst.addEmailVerify.COUNT && !addVerifyOpen) {
+			const row = await verifyRecordService.increaseAddCount(c);
+			addVerifyOpen = row.count >= addVerifyCount
+		}
+
+		accountRow.addVerifyOpen = addVerifyOpen
+		return accountRow;
 	},
 
 	selectByEmailIncludeDelNoCase(c, email) {

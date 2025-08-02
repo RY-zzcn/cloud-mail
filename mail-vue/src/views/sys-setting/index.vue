@@ -101,13 +101,13 @@
                       fit="cover"
                   >
                     <template #error>
-                      <div class="error-image" @click="openCut">
+                      <div class="error-image" @click="openSetBackground">
                         <Icon icon="ph:image" width="24" height="24"/>
                       </div>
                     </template>
                   </el-image>
                   <div class="background-btn">
-                    <el-button class="opt-button" size="small" type="primary" @click="openCut">
+                    <el-button class="opt-button" size="small" type="primary" @click="openSetBackground">
                       <Icon icon="lsicon:edit-outline" width="16" height="16"/>
                     </el-button>
                     <el-button class="opt-button" size="small" type="primary" @click="delBackground">
@@ -230,15 +230,39 @@
               <div class="setting-item">
                 <div><span>{{$t('signUpVerification')}}</span></div>
                 <div>
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.registerVerify"/>
+                  <el-button class="opt-button" size="small" type="primary" @click="openRegVerifyCount">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                  <el-select
+                      @change="change"
+                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
+                      v-model="setting.registerVerify"
+                      placeholder="Select"
+                      class="bot-verify-select"
+                  >
+                    <el-option key="1" :value="0" :label="$t('enable')" />
+                    <el-option key="1" :value="1" :label="$t('disable')" />
+                    <el-option key="1" :value="2" :label="$t('rulesVerify')" />
+                  </el-select>
                 </div>
               </div>
               <div class="setting-item">
                 <div><span>{{$t('addEmailVerification')}}</span></div>
                 <div>
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.addEmailVerify"/>
+                  <el-button class="opt-button" size="small" type="primary" @click="openAddVerifyCount">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                  <el-select
+                      @change="change"
+                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
+                      v-model="setting.addEmailVerify"
+                      placeholder="Select"
+                      class="bot-verify-select"
+                  >
+                    <el-option key="1" :value="0" :label="$t('enable')" />
+                    <el-option key="1" :value="1" :label="$t('disable')" />
+                    <el-option key="1" :value="2" :label="$t('rulesVerify')" />
+                  </el-select>
                 </div>
               </div>
               <div class="setting-item">
@@ -286,10 +310,10 @@
               </div>
               <div class="concerning-item">
                 <span>{{$t('support')}} : </span>
-                <el-button @click="jump('https://afdian.com/a/eoao_')" >
-                  Afdian
+                <el-button @click="jump('https://support.skymail.ink')" >
+                  {{t('supportDesc')}}
                   <template #icon>
-                    <Icon color="#8261DB" icon="simple-icons:afdian" width="24" height="24" />
+                    <Icon color="#79D6B5" icon="simple-icons:buymeacoffee" width="20" height="20" />
                   </template>
                 </el-button>
               </div>
@@ -299,7 +323,7 @@
       </div>
 
       <!-- Dialogs remain the same -->
-      <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="340" @closed="editTitle = ''">
+      <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="340" >
         <form>
           <el-input type="text" :placeholder="$t('websiteTitle')" v-model="editTitle"/>
           <el-button type="primary" :loading="settingLoading" @click="saveTitle">{{$t('save')}}</el-button>
@@ -319,7 +343,7 @@
           <el-button type="primary" :loading="settingLoading" @click="saveResendToken">{{$t('save')}}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="r2DomainShow" :title="$t('addOsDomain')" width="340" @closed="r2DomainInput = ''">
+      <el-dialog v-model="r2DomainShow" :title="$t('addOsDomain')" width="340" @closed="r2DomainInput = setting.r2Domain">
         <form>
           <el-input type="text" :placeholder="$t('domainDesc')" v-model="r2DomainInput"/>
           <el-button type="primary" :loading="settingLoading" @click="saveR2domain">{{$t('save')}}</el-button>
@@ -334,24 +358,37 @@
         </form>
       </el-dialog>
       <el-dialog
-          v-model="cutShow"
-          :title="$t('backgroundCropping')"
+          v-model="showSetBackground"
           class="cut-dialog"
+          @closed="closedSetBackground"
       >
-        <div class="cropper">
-          <vueCropper
-              ref="cropper"
-              :img="cutImage"
-              :fixedNumber="[16,9]"
-              outputType="jpeg"
-              :fixed="true"
-              :centerBox="true"
-              :full="true"
-              :autoCrop="true"
-              :outputSize="0.92"
-          ></vueCropper>
-        </div>
+        <template #header>
+          <span style="font-size: 18px">
+            {{$t('backgroundTitle')}}
+            <el-tooltip>
+              <template #content>
+                <span>{{$t('backgroundWarning')}}</span>
+              </template>
+              <Icon class="title-icon  warning" icon="fe:warning" width="18" height="18"/>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-input :placeholder="$t('backgroundUrlDesc')" v-model="backgroundUrl" v-if="!localUpShow" class="background-url" />
+        <el-image
+            v-if="localUpShow"
+            :preview-src-list="[backgroundImage]"
+            show-progress
+            class="cropper"
+            fit="cover"
+            :src="backgroundImage"
+        ></el-image>
         <div class="cut-button">
+          <el-button type="primary" link @click="openCut" v-if="!localUpShow">
+            {{$t('localUpload')}}
+          </el-button>
+          <el-button type="primary" link @click="localUpShow = false" v-if="localUpShow">
+            {{$t('imageLink')}}
+          </el-button>
           <el-button type="primary" :loading="settingLoading" @click="saveBackground">{{$t('save')}}</el-button>
         </div>
       </el-dialog>
@@ -387,7 +424,7 @@
         <template #header>
           <div class="forward-head">
             <span class="forward-set-title">{{$t('otherEmail')}}</span>
-            <el-tooltip effect="dark" :content="$t('otherEmailDec')">
+            <el-tooltip effect="dark" :content="$t('otherEmailDesc')">
               <Icon class="warning" icon="fe:warning" width="18" height="18"/>
             </el-tooltip>
           </div>
@@ -437,6 +474,19 @@
           <el-table-column :width="tokenColumnWidth" property="value" label="Token" fixed="right" :show-overflow-tooltip="true" />
         </el-table>
       </el-dialog>
+      <el-dialog v-model="showRegVerifyCount" :title="$t('rulesVerifyTitle',{count: regVerifyCount})"  @closed="regVerifyCount = setting.regVerifyCount" >
+        <form>
+          <el-input-number type="text" v-model="regVerifyCount" :min="1" >
+          </el-input-number>
+          <el-button type="primary" :loading="settingLoading" @click="saveRegVerifyCount">{{$t('save')}}</el-button>
+        </form>
+      </el-dialog>
+      <el-dialog v-model="showAddVerifyCount" :title="$t('rulesVerifyTitle',{count: addVerifyCount})" @closed="addVerifyCount = setting.addVerifyCount">
+        <form>
+          <el-input-number type="text" v-model="addVerifyCount" :min="1"/>
+          <el-button type="primary" :loading="settingLoading" @click="saveAddVerifyCount">{{$t('save')}}</el-button>
+        </form>
+      </el-dialog>
     </el-scrollbar>
   </div>
 </template>
@@ -454,6 +504,7 @@ import {debounce} from 'lodash-es'
 import {isEmail} from "@/utils/verify-utils.js";
 import loading from "@/components/loading/index.vue";
 import {getTextWidth} from "@/utils/text.js";
+import { fileToBase64 } from "@/utils/file-utils.js"
 import { useI18n } from 'vue-i18n';
 
 defineOptions({
@@ -462,9 +513,8 @@ defineOptions({
 
 const { t, locale } = useI18n();
 const firstLoading = ref(true)
-const cropper = ref()
-const cutImage = ref('')
-const cutShow = ref(false)
+const backgroundImage = ref('')
+const localUpShow = ref(false)
 const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
@@ -481,7 +531,14 @@ const editTitle = ref('')
 const settingLoading = ref(false)
 const r2DomainInput = ref('')
 const loginOpacity = ref(0)
+const backgroundUrl = ref('')
+let backgroundFile = {}
+const showSetBackground = ref(false)
+let regVerifyCount = ref(1)
+let addVerifyCount = ref(1)
 let backup = '{}'
+const showAddVerifyCount = ref(false)
+const showRegVerifyCount = ref(false)
 const resendTokenForm = reactive({
   domain: '',
   token: '',
@@ -517,6 +574,29 @@ const tokenColumnWidth = ref(0)
 const ruleType = ref(0)
 const ruleEmail = ref([])
 
+
+settingQuery().then(settingData => {
+  setting.value = settingData
+  resendTokenForm.domain = setting.value.domainList[0]
+  loginOpacity.value = setting.value.loginOpacity
+  firstLoading.value = false
+  backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
+  editTitle.value = setting.value.title
+  r2DomainInput.value = setting.value.r2Domain
+  addVerifyCount.value = setting.value.addVerifyCount
+  regVerifyCount.value = setting.value.regVerifyCount
+})
+
+function openAddVerifyCount() {
+  if (settingLoading.value) return
+  showAddVerifyCount.value = true
+}
+
+function openRegVerifyCount() {
+  if (settingLoading.value) return
+  showRegVerifyCount.value = true
+}
+
 const resendList = computed(() => {
 
   let list = Object.keys(setting.value.resendTokens).map(key => {
@@ -539,6 +619,20 @@ const resendList = computed(() => {
   return list;
 });
 
+function saveAddVerifyCount() {
+  if(!addVerifyCount.value) {
+    addVerifyCount.value = 1
+  }
+  editSetting({addVerifyCount: addVerifyCount.value})
+}
+
+function saveRegVerifyCount() {
+  if (!regVerifyCount.value) {
+    regVerifyCount.value = 1
+  }
+  editSetting({regVerifyCount: regVerifyCount.value})
+}
+
 const compareByLengthAndUpperCase = (a, b, key) => {
   const getUpperCaseCount = (str) => (str.match(/[A-Z]/g) || []).length;
   if (a[key].length === b[key].length) {
@@ -548,13 +642,11 @@ const compareByLengthAndUpperCase = (a, b, key) => {
 };
 
 
-
-settingQuery().then(settingData => {
-  setting.value = settingData
-  resendTokenForm.domain = setting.value.domainList[0]
-  loginOpacity.value = setting.value.loginOpacity
-  firstLoading.value = false
-})
+function closedSetBackground() {
+  backgroundImage.value = ''
+  localUpShow.value = false
+  backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
+}
 
 function openTgSetting() {
   tgBotStatus.value = setting.value.tgBotStatus
@@ -697,6 +789,7 @@ function delBackground() {
     cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
+    backgroundUrl.value = ''
     setting.value.background = null
     editSetting({background: null})
   })
@@ -709,21 +802,43 @@ function saveTurnstileKey() {
   editSetting(settingForm)
 }
 
-function saveBackground() {
-  settingLoading.value = true
-  cropper.value.getCropData(data => {
-    setBackground(data).then(key => {
-      setting.value.background = key
-      cutShow.value = false
+async function saveBackground() {
+
+  let image = ''
+
+  if (localUpShow.value) {
+    image =  await fileToBase64(backgroundFile,true);
+  } else {
+    if (backgroundUrl.value && !backgroundUrl.value.startsWith('http')) {
       ElMessage({
-        message: t('changSuccessMsg'),
-        type: "success",
+        message: t('imageLinkErrorMsg'),
+        type: "error",
         plain: true
       })
-    }).finally(() => {
-      settingLoading.value = false
+      return
+    }
+    image = backgroundUrl.value
+  }
+  settingLoading.value = true
+
+  setBackground(image).then(key => {
+    setting.value.background = key
+    showSetBackground.value = false
+    ElMessage({
+      message: t('changSuccessMsg'),
+      type: "success",
+      plain: true
     })
+    localUpShow.value = false
+    backgroundImage.value = ''
+  }).finally(() => {
+    settingLoading.value = false
   })
+
+}
+
+function openSetBackground() {
+  showSetBackground.value = true
 }
 
 function openCut() {
@@ -732,14 +847,15 @@ function openCut() {
   doc.setAttribute('accept', 'image/*')
   doc.click()
   doc.onchange = async (e) => {
-    cutImage.value = URL.createObjectURL(e.target.files[0])
-    cutShow.value = true
+    backgroundFile = e.target.files[0]
+    backgroundImage.value = URL.createObjectURL(e.target.files[0])
+    localUpShow.value = true
   }
 }
 
 function saveR2domain() {
   const settingForm = {r2Domain: r2DomainInput.value}
-  editSetting(settingForm)
+  editSetting(settingForm, true)
 }
 
 function openResendForm() {
@@ -823,8 +939,9 @@ function editSetting(settingForm, refreshStatus = true) {
     tgSettingShow.value = false
     thirdEmailShow.value = false
     forwardRulesShow.value = false
+    showAddVerifyCount.value = false
+    showRegVerifyCount.value = false
   }).catch((e) => {
-    console.log(e)
     loginOpacity.value = setting.value.loginOpacity
     setting.value = {...setting.value, ...JSON.parse(backup)}
   }).finally(() => {
@@ -892,6 +1009,10 @@ function editSetting(settingForm, refreshStatus = true) {
   flex-direction: column;
 }
 
+.bot-verify-select {
+  margin-left: 10px;
+}
+
 .settings-card {
   background-color: #fff;
   border-radius: 8px;
@@ -939,6 +1060,14 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
+.title-icon.warning {
+  position: relative;
+  top: 2px;
+  color: gray;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
 .warning {
   margin-left: 5px;
   color: gray;
@@ -958,6 +1087,11 @@ function editSetting(settingForm, refreshStatus = true) {
   display: flex;
   justify-content: space-between;
 }
+
+.background-url {
+  width: min(calc(100vw - 70px), 500px);
+}
+
 
 :deep(.el-dialog) {
   width: 400px !important;
@@ -1027,8 +1161,7 @@ function editSetting(settingForm, refreshStatus = true) {
   padding-top: 15px;
   width: 100%;
   display: flex;
-  justify-content: end;
-
+  justify-content: space-between;
   .el-button {
     width: fit-content;
   }

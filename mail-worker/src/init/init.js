@@ -8,7 +8,7 @@ const init = {
 		const secret = c.req.param('secret');
 
 		if (secret !== c.env.jwt_secret) {
-			return c.text(t('initSuccess'));
+			return c.text('jwt_secret 不匹配');
 		}
 
 		await this.intDB(c);
@@ -18,13 +18,42 @@ const init = {
 		await this.v1_3_1DB(c);
 		await this.v1_4DB(c);
 		await this.v1_5DB(c);
+		await this.v1_6DB(c);
 		await settingService.refresh(c);
-		return c.text('初始化成功');
+		return c.text(t('initSuccess'));
+	},
+
+	async v1_6DB(c) {
+
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE setting ADD COLUMN reg_verify_count INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN add_verify_count INTEGER NOT NULL DEFAULT 1;`,
+			`CREATE TABLE IF NOT EXISTS verify_record (
+				vr_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ip TEXT NOT NULL DEFAULT '',
+				count INTEGER NOT NULL DEFAULT 1,
+				type INTEGER NOT NULL DEFAULT 0,
+				update_time DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`
+		];
+
+		for (let sql of ADD_COLUMN_SQL_LIST) {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加，原因：${e.message}`);
+			}
+		}
 	},
 
 	async v1_5DB(c) {
 		await c.env.db.prepare(`UPDATE perm SET perm_key = 'sys-email:list' WHERE perm_key = 'all-email:list'`).run();
 		await c.env.db.prepare(`UPDATE perm SET perm_key = 'sys-email:delete' WHERE perm_key = 'all-email:delete'`).run();
+		try {
+			await c.env.db.prepare(`ALTER TABLE role ADD COLUMN avail_domain TEXT NOT NULL DEFAULT ''`).run();
+		} catch (e) {
+			console.warn(`跳过字段添加，原因：${e.message}`);
+		}
 	},
 
 	async v1_4DB(c) {
